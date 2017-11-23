@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26730.16
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "N-Body Simulation", "N-Body Simulation\N-Body Simulation.vcxproj", "{3A8E1C69-A978-47F0-A2CE-61EBD02AD556}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Original", "N-Body Simulation\N-Body Simulation.vcxproj", "{3A8E1C69-A978-47F0-A2CE-61EBD02AD556}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CUDA", "CUDA\CUDA.vcxproj", "{3E45868B-3D63-46FB-82D2-2923FFBBC125}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,12 @@ Global
 		{3A8E1C69-A978-47F0-A2CE-61EBD02AD556}.Release|x64.Build.0 = Release|x64
 		{3A8E1C69-A978-47F0-A2CE-61EBD02AD556}.Release|x86.ActiveCfg = Release|Win32
 		{3A8E1C69-A978-47F0-A2CE-61EBD02AD556}.Release|x86.Build.0 = Release|Win32
+		{3E45868B-3D63-46FB-82D2-2923FFBBC125}.Debug|x64.ActiveCfg = Debug|x64
+		{3E45868B-3D63-46FB-82D2-2923FFBBC125}.Debug|x64.Build.0 = Debug|x64
+		{3E45868B-3D63-46FB-82D2-2923FFBBC125}.Debug|x86.ActiveCfg = Debug|x64
+		{3E45868B-3D63-46FB-82D2-2923FFBBC125}.Release|x64.ActiveCfg = Release|x64
+		{3E45868B-3D63-46FB-82D2-2923FFBBC125}.Release|x64.Build.0 = Release|x64
+		{3E45868B-3D63-46FB-82D2-2923FFBBC125}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

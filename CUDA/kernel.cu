@@ -1,8 +1,9 @@
 // Translated into C++ from Java, based on the code available at: http://physics.princeton.edu/~fpretori/Nbody/
-
-#include "body.h"
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "body.h"
 #include <vector>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_primitives.h>
@@ -20,6 +21,7 @@ double random()
 {
 	return static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
 }
+
 int sgn(double d) {
 	return d<-DBL_EPSILON ? -1 : d>DBL_EPSILON;
 }
@@ -34,7 +36,7 @@ double circlev(double rx, double ry)
 	return sqrt(numerator / r2);
 }
 
-//Initialize N bodies with random positions and circular velocities
+// Initialize N bodies with random positions and circular velocities
 void startthebodies(int N)
 {
 	double radius = 1e18;        // radius of universe
@@ -69,17 +71,17 @@ void startthebodies(int N)
 	}
 }
 
-//Use the method in Body to reset the forces, then add all the new forces
+// Use the method in Body to reset the forces, then add all the new forces
 void addforces(int N)
 {
 	for (int i = 0; i < N; i++) {
 		bodies[i]->resetForce();
-		//Notice-2 loops-->N^2 complexity
+		// Notice-2 loops-->N^2 complexity
 		for (int j = 0; j < N; j++) {
 			if (i != j) bodies[i]->addForce(*bodies[j]);
 		}
 	}
-	//Then, loop again and update the bodies using timestep dt
+	// Then, loop again and update the bodies using timestep dt
 	for (int i = 0; i < N; i++) {
 		bodies[i]->update(1e11);
 	}
@@ -87,8 +89,8 @@ void addforces(int N)
 
 void draw_bodies()
 {
-	for (int i = 0; i<N; i++) { 
-		al_draw_circle((screen_size_x /2) + (int)round(bodies[i]->rx / 1e18), (screen_size_y / 2) + (int)round(bodies[i]->ry / 1e18),1.0f, bodies[i]->color, 0.75f);
+	for (int i = 0; i<N; i++) {
+		al_draw_circle((screen_size_x / 2) + (int)round(bodies[i]->rx / 1e18), (screen_size_y / 2) + (int)round(bodies[i]->ry / 1e18), 1.0f, bodies[i]->color, 0.75f);
 	}
 }
 
