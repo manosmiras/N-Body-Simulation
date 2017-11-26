@@ -20,7 +20,7 @@ vector<Body*> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
 int screen_size_y = 768;
-#define BLOCK_SIZE 1024
+#define BLOCK_SIZE 256
 
 struct force
 {
@@ -28,7 +28,7 @@ struct force
 	double fy;
 };
 
-__global__ void add_force(Body *bodies, force *f, const double G, int N, double dt)
+__global__ void add_force(const Body *bodies, double *vx, double *vy, const double G, int N, double dt)
 {
 	// Get block index
 	unsigned int block_idx = blockIdx.x;
@@ -41,8 +41,9 @@ __global__ void add_force(Body *bodies, force *f, const double G, int N, double 
 	if (idx < N)
 	{
 		// Reset forces
-		bodies[idx].fx = 0.0;
-		bodies[idx].fy = 0.0;
+		double fx, fy = 0.0;
+		//bodies[idx].fx = 0.0;
+		//bodies[idx].fy = 0.0;
 
 		for (int tile = 0; tile < gridDim.x; tile++)
 		{
@@ -51,22 +52,32 @@ __global__ void add_force(Body *bodies, force *f, const double G, int N, double 
 			double t_rx = bodies[tile * blockDim.x + threadIdx.x].rx;
 			double t_ry = bodies[tile * blockDim.x + threadIdx.x].ry;
 			s_rx[threadIdx.x] = t_rx;
-			s_ry[threadIdx.y] = t_ry;
-
+			s_ry[threadIdx.x] = t_ry;
+			__syncthreads();
 			for (int j = 0; j < BLOCK_SIZE; j++)
 			{
-				double EPS = 3E4;      // softening parameter (just to avoid infinities)
-				double dx = s_rx[j] - bodies[idx].rx;
-				double dy = s_ry[j] - bodies[idx].ry;
-				double dist = sqrt(dx*dx + dy*dy);
-				double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
+				if (idx != j)
+				{
+					double EPS = 3E4;      // softening parameter (just to avoid infinities)
+					double dx = s_rx[j] - bodies[idx].rx;
+					double dy = s_ry[j] - bodies[idx].ry;
+					double dist = sqrt(dx*dx + dy*dy);
+					double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
 
-				// is this right? probably
-				f[idx].fx += F * dx / dist;
-				f[idx].fy += F * dy / dist;
+					// is this right? probably
+					//f[idx].fx += F * dx / dist;
+					//f[idx].fy += F * dy / dist;
+
+					fx += F * dx / dist;
+					fy += F * dy / dist;
+				}
 			}
 			__syncthreads();
 		}
+		
+		// Calculate velocity
+		vx[idx] += dt * fx / bodies[idx].mass;
+		vy[idx] += dt * fy / bodies[idx].mass;
 	}
 	//for (int j = 0; j < N; j++) 
 	//{
@@ -95,6 +106,61 @@ __global__ void add_force(Body *bodies, force *f, const double G, int N, double 
 	//c->fx += F * dx / dist;
 	//c->fy += F * dy / dist;
 }
+
+__global__ void add_force_simple(const Body *bodies, double *vx, double *vy, const double G, int N, double dt)
+{
+	// Get block index
+	unsigned int block_idx = blockIdx.x;
+	// Get thread index
+	unsigned int thread_idx = threadIdx.x;
+	// Get the number of threads per block
+	unsigned int block_dim = blockDim.x;
+	// Get the thread's unique ID = (block_idx * block_dim) + thread_idx;
+	unsigned int idx = (block_idx * block_dim) + thread_idx;
+
+	if (idx < N)
+	{
+		double fx, fy = 0;
+		for (int j = 0; j < N; j++)
+		{
+			if (idx != j)
+			{
+				double EPS = 3E4;      // softening parameter (just to avoid infinities)
+				double dx = bodies[j].rx - bodies[idx].rx;
+				double dy = bodies[j].ry - bodies[idx].ry;
+				double dist = sqrt(dx*dx + dy*dy);
+				double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
+
+				fx += F * dx / dist;
+				fy += F * dy / dist;
+				//bodies[idx].fx = fx;
+				//bodies[idx].fy = fy;
+				//fx[idx] = bodies[idx].fx;
+				//fy[idx] = bodies[j].fx;
+				//f[idx].fx += F * dx / dist;
+				//f[idx].fy += F * dy / dist;
+				//bodies_return[idx].fx += F * dx / dist;
+				//bodies_return[idx].fy += F * dy / dist;
+			}
+		}
+		//bodies[idx].vx += dt * fx / bodies[idx].mass;
+		//bodies[idx].vy += dt * fy / bodies[idx].mass;
+		//bodies[idx].rx += dt * bodies[idx].vx;
+		//bodies[idx].ry += dt * bodies[idx].vy;
+
+		// Update velocity
+		vx[idx] += dt * fx / bodies[idx].mass;
+		vy[idx] += dt * fy / bodies[idx].mass;
+	}
+
+	//bodies_return[idx].vx += dt * bodies_return[idx].fx / bodies_return[idx].mass;
+	//bodies_return[idx].vy += dt * bodies_return[idx].fy / bodies_return[idx].mass;
+	//bodies_return[idx].rx += dt * bodies_return[idx].vx;
+	//bodies_return[idx].ry += dt * bodies_return[idx].vy;
+	//c->fx += F * dx / dist;
+	//c->fy += F * dy / dist;
+}
+
 
 
 double random()
@@ -210,23 +276,32 @@ int main(int argc, char **argv)
 
 	// Create host memory
 	auto body_data_size = sizeof(Body*) * N;
-	auto force_data_size = sizeof(force*) * N;
-	vector<force*> f(N); // Output array
-	
-	for (size_t i = 0; i < N; i++)
-	{
-		f[i] = (force*)malloc(force_data_size);
-		f[i]->fx = 0.0;
-		f[i]->fy = 0.0;
-	}
+	//auto force_data_size = sizeof(force*) * N;
+	auto double_data_size = sizeof(double) * N;
+	vector<double> vx(N);
+	vector<double> vy(N);
+	//vector<force*> f(N); // Output array
+	//
+	//for (size_t i = 0; i < N; i++)
+	//{
+	//	f[i] = (force*)malloc(force_data_size);
+	//	f[i]->fx = 0.0;
+	//	f[i]->fy = 0.0;
+	//}
 	
 	// Declare buffers
 	Body *d_a;
-	force *d_b;
+	//force *d_b;
+	double *d_b;
+	double *d_c;
 
 	// Initialise buffers
 	cudaMalloc((void**)&d_a, body_data_size);
-	cudaMalloc((void**)&d_b, force_data_size);
+	cudaMalloc((void**)&d_b, double_data_size);
+	cudaMalloc((void**)&d_c, double_data_size);
+
+	//vx = (double*)malloc(double_data_size);
+	//vy = (double*)malloc(double_data_size);
 
 	//cudaMalloc((void**)&buffer_C, double_data_size);
 
@@ -235,28 +310,34 @@ int main(int argc, char **argv)
 
 	// Get the start time
 	auto start = std::chrono::system_clock::now();
-
+	double dt = 1e11;
 	for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
 	{
 		//addforces(N);
 		cudaMemcpy(d_a, &bodies[0], body_data_size, cudaMemcpyHostToDevice);
 
 		// Max 1024 threads per block
-		add_force <<<N, BLOCK_SIZE>>>(d_a, d_b, G, N, 1e11);
+		add_force<<<nBlocks, BLOCK_SIZE>>>(d_a, d_b, d_c, G, N, dt);
 		//kernel << <1, 1 >> > ();
 		// Wait for kernel to complete
-		//cudaDeviceSynchronize();
+		cudaDeviceSynchronize();
 
 		// Read output buffers back to the host
-		cudaMemcpy(f[0], d_b, force_data_size, cudaMemcpyDeviceToHost);
+		//cudaMemcpy(f[0], d_b, force_data_size, cudaMemcpyDeviceToHost);
+		cudaMemcpy(&vx[0], d_b, double_data_size, cudaMemcpyDeviceToHost);
+		cudaMemcpy(&vy[0], d_c, double_data_size, cudaMemcpyDeviceToHost);
 		//cudaMemcpy(&fy[0], buffer_C, double_data_size, cudaMemcpyDeviceToHost);
 
 		for (int i = 0; i < N; i++) 
 		{
-			bodies[i]->fx = f[i]->fx;
-			bodies[i]->fy = f[i]->fy;
+			//bodies[i]->fx = f[i]->fx;
+			//bodies[i]->fy = f[i]->fy;
 
-			bodies[i]->update(1e11);
+			//bodies[i]->update(1e11);
+
+			// Integrate
+			bodies[i]->rx += dt * vx[i];
+			bodies[i]->ry += dt * vy[i];
 		}
 
 		draw_bodies();

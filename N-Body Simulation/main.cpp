@@ -125,31 +125,45 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	startthebodies(N);
+
 
 	// Get the start time
 	auto start = std::chrono::system_clock::now();
+	int avg_count = 100;
 
-	for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
+	for (int average_iterations = 0; average_iterations <= avg_count; average_iterations++)
 	{
-		addforces(N);
-		draw_bodies();
-		al_flip_display();
-		al_clear_to_color(al_map_rgb(0, 0, 0));
+		bodies.clear();
+		startthebodies(N);
+		// Get the start time
+		auto current_start = std::chrono::system_clock::now();
 
-		char buffer[30];
-		_itoa_s(sim_iterations, buffer, 10);
-		string s = "Simulation iterations: ";
-		s += buffer;
-		al_draw_text(font, al_map_rgb(255, 255, 255), 0, 0, ALLEGRO_ALIGN_LEFT, s.c_str());
+		for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
+		{
+			addforces(N);
+			draw_bodies();
+			al_flip_display();
+			al_clear_to_color(al_map_rgb(0, 0, 0));
+
+			char buffer[30];
+			_itoa_s(sim_iterations, buffer, 10);
+			string s = "Simulation iterations: ";
+			s += buffer;
+			al_draw_text(font, al_map_rgb(255, 255, 255), 0, 0, ALLEGRO_ALIGN_LEFT, s.c_str());
+		}
+		// Get the end time
+		auto current_end = std::chrono::system_clock::now();
+		// Get the total time
+		auto current_total = current_end - current_start;
+
+		cout << average_iterations << ", time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(current_total).count() << " ms" << endl;
 	}
-
 	// Get the end time
 	auto end = std::chrono::system_clock::now();
 	// Get the total time
 	auto total = end - start;
 
-	cout << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(total).count() << " ms" << endl;
+	cout << "Total time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(total).count() / avg_count << " ms" << endl;
 
 	al_destroy_display(display);
 
