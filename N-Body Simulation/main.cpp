@@ -8,6 +8,7 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_color.h>
 #include <iostream>
+#include <chrono>
 using namespace std;
 
 int N = 1000;
@@ -115,13 +116,23 @@ int main(int argc, char **argv)
 
 	startthebodies(N);
 
-	while (true)
+	// Get the start time
+	auto start = std::chrono::system_clock::now();
+
+	for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
 	{
 		addforces(N);
 		draw_bodies();
 		al_flip_display();
 		al_clear_to_color(al_map_rgb(0, 0, 0));
 	}
+
+	// Get the end time
+	auto end = std::chrono::system_clock::now();
+	// Get the total time
+	auto total = end - start;
+
+	cout << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(total).count() << " ms" << endl;
 
 	al_destroy_display(display);
 
