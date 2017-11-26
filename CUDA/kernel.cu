@@ -15,7 +15,7 @@
 #include <string>
 using namespace std;
 const double G = 6.673e-11;   // gravitational constant
-int N = 1000;
+int N = 1024;
 vector<Body*> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
@@ -38,29 +38,54 @@ __global__ void add_force(Body *bodies, force *f, const double G, int N, double 
 	unsigned int block_dim = blockDim.x;
 	// Get the thread's unique ID = (block_idx * block_dim) + thread_idx;
 	unsigned int idx = (block_idx * block_dim) + thread_idx;
-
-	// Reset forces
-	bodies[idx].fx = 0.0;
-	bodies[idx].fy = 0.0;
-
-	for (int j = 0; j < N; j++) 
+	if (idx < N)
 	{
-		if (idx != j)
-		{
-			double EPS = 3E4;      // softening parameter (just to avoid infinities)
-			double dx = bodies[j].rx - bodies[idx].rx;
-			double dy = bodies[j].ry - bodies[idx].ry;
-			double dist = sqrt(dx*dx + dy*dy);
-			double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
+		// Reset forces
+		bodies[idx].fx = 0.0;
+		bodies[idx].fy = 0.0;
 
-			//fx[idx] = bodies[idx].fx;
-			//fy[idx] = bodies[j].fx;
-			f[idx].fx += F * dx / dist;
-			f[idx].fy += F * dy / dist;
-			//bodies_return[idx].fx += F * dx / dist;
-			//bodies_return[idx].fy += F * dy / dist;
+		for (int tile = 0; tile < gridDim.x; tile++)
+		{
+			__shared__ double s_rx[BLOCK_SIZE];
+			__shared__ double s_ry[BLOCK_SIZE];
+			double t_rx = bodies[tile * blockDim.x + threadIdx.x].rx;
+			double t_ry = bodies[tile * blockDim.x + threadIdx.x].ry;
+			s_rx[threadIdx.x] = t_rx;
+			s_ry[threadIdx.y] = t_ry;
+
+			for (int j = 0; j < BLOCK_SIZE; j++)
+			{
+				double EPS = 3E4;      // softening parameter (just to avoid infinities)
+				double dx = s_rx[j] - bodies[idx].rx;
+				double dy = s_ry[j] - bodies[idx].ry;
+				double dist = sqrt(dx*dx + dy*dy);
+				double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
+
+				// is this right? probably
+				f[idx].fx += F * dx / dist;
+				f[idx].fy += F * dy / dist;
+			}
+			__syncthreads();
 		}
 	}
+	//for (int j = 0; j < N; j++) 
+	//{
+	//	if (idx != j)
+	//	{
+	//		double EPS = 3E4;      // softening parameter (just to avoid infinities)
+	//		double dx = bodies[j].rx - bodies[idx].rx;
+	//		double dy = bodies[j].ry - bodies[idx].ry;
+	//		double dist = sqrt(dx*dx + dy*dy);
+	//		double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
+
+	//		//fx[idx] = bodies[idx].fx;
+	//		//fy[idx] = bodies[j].fx;
+	//		f[idx].fx += F * dx / dist;
+	//		f[idx].fy += F * dy / dist;
+	//		//bodies_return[idx].fx += F * dx / dist;
+	//		//bodies_return[idx].fy += F * dy / dist;
+	//	}
+	//}
 
 	// Update velocity
 	//bodies_return[idx].vx += dt * bodies_return[idx].fx / bodies_return[idx].mass;
@@ -184,21 +209,29 @@ int main(int argc, char **argv)
 	cudaSetDevice(0);
 
 	// Create host memory
-	auto body_data_size = sizeof(Body) * N;
-	auto double_data_size = sizeof(force) * N;
-	vector<force> f(N); // Output array
-	//vector<double> fy(N); // Output array
-
+	auto body_data_size = sizeof(Body*) * N;
+	auto force_data_size = sizeof(force*) * N;
+	vector<force*> f(N); // Output array
+	
+	for (size_t i = 0; i < N; i++)
+	{
+		f[i] = (force*)malloc(force_data_size);
+		f[i]->fx = 0.0;
+		f[i]->fy = 0.0;
+	}
+	
 	// Declare buffers
-	Body *buffer_A;
-	force *buffer_B;//, *buffer_C;
+	Body *d_a;
+	force *d_b;
 
 	// Initialise buffers
-	cudaMalloc((void**)&buffer_A, body_data_size);
-	cudaMalloc((void**)&buffer_B, double_data_size);
+	cudaMalloc((void**)&d_a, body_data_size);
+	cudaMalloc((void**)&d_b, force_data_size);
+
 	//cudaMalloc((void**)&buffer_C, double_data_size);
 
-	int nBlocks = N / BLOCK_SIZE;
+	//int nBlocks = N / BLOCK_SIZE;
+	int nBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
 	// Get the start time
 	auto start = std::chrono::system_clock::now();
@@ -206,22 +239,22 @@ int main(int argc, char **argv)
 	for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
 	{
 		//addforces(N);
-		cudaMemcpy(buffer_A, &bodies[0], body_data_size, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_a, &bodies[0], body_data_size, cudaMemcpyHostToDevice);
 
-		// Run kernel with one thread for each element
-		add_force <<<nBlocks, BLOCK_SIZE>>>(buffer_A, buffer_B, G, N, 1e11);
+		// Max 1024 threads per block
+		add_force <<<N, BLOCK_SIZE>>>(d_a, d_b, G, N, 1e11);
 		//kernel << <1, 1 >> > ();
 		// Wait for kernel to complete
-		cudaDeviceSynchronize();
+		//cudaDeviceSynchronize();
 
 		// Read output buffers back to the host
-		cudaMemcpy(&f[0], buffer_B, double_data_size, cudaMemcpyDeviceToHost);
+		cudaMemcpy(f[0], d_b, force_data_size, cudaMemcpyDeviceToHost);
 		//cudaMemcpy(&fy[0], buffer_C, double_data_size, cudaMemcpyDeviceToHost);
 
 		for (int i = 0; i < N; i++) 
 		{
-			bodies[i]->fx = f[i].fx;
-			bodies[i]->fy = f[i].fy;
+			bodies[i]->fx = f[i]->fx;
+			bodies[i]->fy = f[i]->fy;
 
 			bodies[i]->update(1e11);
 		}
@@ -230,7 +263,7 @@ int main(int argc, char **argv)
 		al_flip_display();
 		al_clear_to_color(al_map_rgb(0, 0, 0));
 		char buffer[30];
-		itoa(sim_iterations, buffer, 10);
+		_itoa_s(sim_iterations, buffer, 10);
 		string s = "Simulation iterations: ";
 		s += buffer;
 		al_draw_text(font, al_map_rgb(255, 255, 255), 0, 0, ALLEGRO_ALIGN_LEFT, s.c_str());
@@ -246,8 +279,8 @@ int main(int argc, char **argv)
 	al_destroy_display(display);
 
 	// Clean up resources
-	cudaFree(buffer_A);
-	cudaFree(buffer_B);
+	cudaFree(d_a);
+	cudaFree(d_b);
 	//cudaFree(buffer_C);
 
 	return 0;

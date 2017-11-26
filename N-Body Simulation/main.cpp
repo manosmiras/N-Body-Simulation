@@ -7,11 +7,13 @@
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_color.h>
+#include <allegro5/allegro_font.h>
+#include <allegro5/allegro_ttf.h>
 #include <iostream>
 #include <chrono>
 using namespace std;
 
-int N = 1000;
+int N = 1024;
 vector<Body*> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
@@ -113,6 +115,15 @@ int main(int argc, char **argv)
 
 	al_flip_display();
 	al_init_primitives_addon();
+	al_init_font_addon(); // initialize the font addon
+	al_init_ttf_addon();// initialize the ttf (True Type Font) addon
+
+	ALLEGRO_FONT *font = al_load_ttf_font("../Consolas.ttf", 24, 0);
+
+	if (!font) {
+		fprintf(stderr, "Could not load 'Consolas.ttf'.\n");
+		return -1;
+	}
 
 	startthebodies(N);
 
@@ -125,6 +136,12 @@ int main(int argc, char **argv)
 		draw_bodies();
 		al_flip_display();
 		al_clear_to_color(al_map_rgb(0, 0, 0));
+
+		char buffer[30];
+		_itoa_s(sim_iterations, buffer, 10);
+		string s = "Simulation iterations: ";
+		s += buffer;
+		al_draw_text(font, al_map_rgb(255, 255, 255), 0, 0, ALLEGRO_ALIGN_LEFT, s.c_str());
 	}
 
 	// Get the end time
