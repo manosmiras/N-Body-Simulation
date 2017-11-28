@@ -11,13 +11,17 @@
 #include <allegro5/allegro_ttf.h>
 #include <iostream>
 #include <chrono>
+#include <omp.h>
+#include <thread>
 using namespace std;
 
-int N = 1024;
+int N = 8192;
 vector<Body*> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
 int screen_size_y = 768;
+
+int num_threads;
 
 double random()
 {
@@ -75,6 +79,8 @@ void startthebodies(int N)
 //Use the method in Body to reset the forces, then add all the new forces
 void addforces(int N)
 {
+	//int i = 0;
+#pragma omp parallel for schedule(dynamic)
 	for (int i = 0; i < N; i++) {
 		bodies[i]->resetForce();
 		//Notice-2 loops-->N^2 complexity
@@ -83,6 +89,7 @@ void addforces(int N)
 		}
 	}
 	//Then, loop again and update the bodies using timestep dt
+//#pragma omp parallel for num_threads(num_threads) private(i) schedule(static, N/num_threads)
 	for (int i = 0; i < N; i++) {
 		bodies[i]->update(1e11);
 	}
@@ -125,11 +132,12 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-
+	// Get number of threads
+	num_threads = std::thread::hardware_concurrency();
 
 	// Get the start time
 	auto start = std::chrono::system_clock::now();
-	int avg_count = 100;
+	int avg_count = 50;
 
 	for (int average_iterations = 0; average_iterations <= avg_count; average_iterations++)
 	{
@@ -138,7 +146,7 @@ int main(int argc, char **argv)
 		// Get the start time
 		auto current_start = std::chrono::system_clock::now();
 
-		for (int sim_iterations = 0; sim_iterations <= 100000; sim_iterations++)
+		for (int sim_iterations = 0; sim_iterations <= 50; sim_iterations++)
 		{
 			addforces(N);
 			draw_bodies();
