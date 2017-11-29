@@ -15,7 +15,7 @@
 #include <thread>
 using namespace std;
 
-int N = 8192;
+int N = 131072;
 vector<Body*> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
@@ -79,18 +79,19 @@ void startthebodies(int N)
 //Use the method in Body to reset the forces, then add all the new forces
 void addforces(int N)
 {
-	//int i = 0;
-#pragma omp parallel for schedule(dynamic)
-	for (int i = 0; i < N; i++) {
+	int i = 0;
+	int j = 0;
+	#pragma omp parallel for num_threads(num_threads) private(i, j) schedule(static, N / num_threads)
+	for (i = 0; i < N; i++) {
 		bodies[i]->resetForce();
 		//Notice-2 loops-->N^2 complexity
-		for (int j = 0; j < N; j++) {
+		for (j = 0; j < N; j++) {
 			if (i != j) bodies[i]->addForce(*bodies[j]);
 		}
 	}
 	//Then, loop again and update the bodies using timestep dt
-//#pragma omp parallel for num_threads(num_threads) private(i) schedule(static, N/num_threads)
-	for (int i = 0; i < N; i++) {
+	#pragma omp parallel for num_threads(num_threads) private(i) schedule(static, N / num_threads)
+	for (i = 0; i < N; i++) {
 		bodies[i]->update(1e11);
 	}
 }
@@ -146,7 +147,7 @@ int main(int argc, char **argv)
 		// Get the start time
 		auto current_start = std::chrono::system_clock::now();
 
-		for (int sim_iterations = 0; sim_iterations <= 50; sim_iterations++)
+		for (int sim_iterations = 0; sim_iterations <= 100; sim_iterations++)
 		{
 			addforces(N);
 			draw_bodies();
