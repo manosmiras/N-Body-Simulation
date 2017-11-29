@@ -15,12 +15,14 @@
 #include <string>
 using namespace std;
 const double G = 6.673e-11;   // gravitational constant
-int N = 1024;
+int N = 256;
 vector<Body*> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
 int screen_size_y = 768;
 #define BLOCK_SIZE 256
+
+typedef struct { double2 *r, *v; double *mass; } Body_System;
 
 __global__ void add_force_block_doubles(double *vx, double *vy, const double *rx, const double *ry,
 	const double *mass, double *r_rx, double *r_ry, const double G, int N, double dt)
@@ -256,7 +258,7 @@ __global__ void add_force_simple_doubles(double *vx, double *vy, const double *r
 }
 
 __global__ void add_force_simple_double2(double2 *v, const double2 *r,
-	const double *mass, double2 *r_r, int N, double dt)
+	const double *mass, int N, double dt)// double2 *r_r, int N, double dt)
 {
 	const double G = 6.673e-11;
 
@@ -286,8 +288,8 @@ __global__ void add_force_simple_double2(double2 *v, const double2 *r,
 		__syncthreads();
 		v[idx].x += dt * _fx / mass[idx];
 		v[idx].y += dt * _fy / mass[idx];
-		r_r[idx].x += dt * v[idx].x;
-		r_r[idx].y += dt * v[idx].y;
+		//r_r[idx].x += dt * v[idx].x;
+		//r_r[idx].y += dt * v[idx].y;
 	}
 }
 
@@ -429,57 +431,86 @@ int main(int argc, char **argv)
 	int avg_count = 50;
 	for (int average_iterations = 0; average_iterations <= avg_count; average_iterations++)
 	{
-		vector<double2> v(N);
-		vector<double2> r(N);
-		vector<double> mass(N);
+		
+		//vector<double2> v(N);
+		//vector<double2> r(N);
+		//vector<double> mass(N);
 
-		vector<double2> r_r(N);
-
-		double2 *d_v;
-		double2 *d_r;
-
-		double *d_m;
-
-		double2 *d_r_r;
-
-		cudaMalloc((void**)&d_v, double2_data_size);
-		cudaMalloc((void**)&d_r, double2_data_size);
-
-		cudaMalloc((void**)&d_m, double_data_size);
-		cudaMalloc((void**)&d_r_r, double2_data_size);
-
+		//vector<double2> r_r(N);
 		bodies.clear();
 		startthebodies(N);
+
+		int bytes = N * ((sizeof(double2) * 2) + sizeof(double));
+		double *buf = (double*)malloc(bytes);
+		Body_System p = { (double2*)buf, ((double2*)buf) + N, (double*)buf};
+
+		for (size_t i = 0; i < N; i++)
+		{
+			p.r[i].x = bodies[i]->rx;
+			p.r[i].y = bodies[i]->ry;
+
+			p.v[i].x = bodies[i]->vx;
+			p.v[i].y = bodies[i]->vy;
+
+			p.mass[i] = bodies[i]->mass;
+		}
+
+		double *d_buf;
+		cudaMalloc(&d_buf, bytes);
+		Body_System d_p = { (double2*)d_buf, ((double2*)d_buf) + N, (double*)d_buf};
+
+
+
+		//double2 *d_v;
+		//double2 *d_r;
+		//
+		//double *d_m;
+		//
+		//double2 *d_r_r;
+
+		//cudaMalloc((void**)&d_v, double2_data_size);
+		//cudaMalloc((void**)&d_r, double2_data_size);
+		//
+		//cudaMalloc((void**)&d_m, double_data_size);
+		//cudaMalloc((void**)&d_r_r, double2_data_size);
+
+		
+
+
 		//v.clear();
 		//r.clear();
 		//mass.clear();
 		//r_r.clear();
 
-		for (size_t i = 0; i < N; i++)
-		{
-			// Init velocity
-			v[i].x = bodies[i]->vx;
-			v[i].y = bodies[i]->vy;
+		//for (size_t i = 0; i < N; i++)
+		//{
+		//	// Init velocity
+		//	v[i].x = bodies[i]->vx;
+		//	v[i].y = bodies[i]->vy;
 
-			// Init positions
-			r[i].x = bodies[i]->rx;
-			r[i].y = bodies[i]->ry;
+		//	// Init positions
+		//	r[i].x = bodies[i]->rx;
+		//	r[i].y = bodies[i]->ry;
 
-			// Init forces
-			// Init mass
-			mass[i] = bodies[i]->mass;
-		}
+		//	// Init forces
+		//	// Init mass
+		//	mass[i] = bodies[i]->mass;
+		//}
 		// Get the start time
 		auto current_start = std::chrono::system_clock::now();
 
 		for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
 		{
-			cudaMemcpyAsync(d_v, &v[0], double2_data_size, cudaMemcpyHostToDevice);
-			cudaMemcpyAsync(d_r, &r[0], double2_data_size, cudaMemcpyHostToDevice);
-			cudaMemcpyAsync(d_m, &mass[0], double_data_size, cudaMemcpyHostToDevice);
+			//cudaMemcpyAsync(d_v, &v[0], double2_data_size, cudaMemcpyHostToDevice);
+			//cudaMemcpyAsync(d_r, &r[0], double2_data_size, cudaMemcpyHostToDevice);
+			//cudaMemcpyAsync(d_m, &mass[0], double_data_size, cudaMemcpyHostToDevice);
+
+			cudaMemcpy(d_buf, buf, bytes, cudaMemcpyHostToDevice);
 
 
-			add_force_simple_double2 << <N / THREADS_PER_BLOCK, THREADS_PER_BLOCK >> > (d_v, d_r, d_m, d_r_r, N, dt);
+			//add_force_simple_double2 << <N / THREADS_PER_BLOCK, THREADS_PER_BLOCK >> > (d_v, d_r, d_m, d_r_r, N, dt);
+			add_force_simple_double2 << <N / THREADS_PER_BLOCK, THREADS_PER_BLOCK >> > (d_p.v, d_p.r, d_p.mass, N, dt);
+
 			// Wait for kernel to complete
 			cudaDeviceSynchronize();
 			cudaError_t error = cudaGetLastError();
@@ -489,7 +520,8 @@ int main(int argc, char **argv)
 				exit(-1);
 			}
 			// Read output buffer back to the host
-			cudaMemcpyAsync(&r_r[0], d_r_r, double2_data_size, cudaMemcpyDeviceToHost);
+			//cudaMemcpyAsync(&r_r[0], d_r_r, double2_data_size, cudaMemcpyDeviceToHost);
+			cudaMemcpy(buf, d_buf, bytes, cudaMemcpyDeviceToHost);
 
 			for (int i = 0; i < N; i++)
 			{
@@ -497,11 +529,12 @@ int main(int argc, char **argv)
 				//bodies[i]->fy = f[i]->fy;
 				//returned_bodies[i].update(1e11);
 				//bodies[i]->update(1e11);
-				bodies[i]->rx = r_r[i].x;
-				bodies[i]->ry = r_r[i].y;
+				//bodies[i]->rx = r_r[i].x;
+				//bodies[i]->ry = r_r[i].y;
+
 				// Integrate
-				//bodies[i]->rx += dt * vx[i];
-				//bodies[i]->ry += dt * vy[i];
+				bodies[i]->rx += dt * p.v[i].x;
+				bodies[i]->ry += dt * p.v[i].y;
 			}
 
 			draw_bodies();
@@ -521,10 +554,12 @@ int main(int argc, char **argv)
 
 		std::cout << average_iterations << ", time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(current_total).count() << " ms" << endl;
 
-		cudaFree(d_v);
-		cudaFree(d_r);
-		cudaFree(d_m);
-		cudaFree(d_r_r);
+		//cudaFree(d_v);
+		//cudaFree(d_r);
+		//cudaFree(d_m);
+		//cudaFree(d_r_r);
+		free(buf);
+		cudaFree(d_buf);
 
 	}
 	// Get the end time
