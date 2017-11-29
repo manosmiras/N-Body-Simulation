@@ -15,7 +15,7 @@
 #include <string>
 using namespace std;
 const double G = 6.673e-11;   // gravitational constant
-int N = 16384;
+int N = 1024;
 vector<Body*> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
@@ -414,6 +414,8 @@ int main(int argc, char **argv)
 		THREADS_PER_BLOCK = N % MAX_THREADS;
 	else
 		THREADS_PER_BLOCK = MAX_THREADS % N;
+	if (THREADS_PER_BLOCK == 0)
+		THREADS_PER_BLOCK = 256;
 
 	std::cout << "Blocks: " << N / THREADS_PER_BLOCK << ", threads per block: " << THREADS_PER_BLOCK << std::endl;
 
@@ -448,10 +450,10 @@ int main(int argc, char **argv)
 
 		bodies.clear();
 		startthebodies(N);
-		v.clear();
-		r.clear();
-		mass.clear();
-		r_r.clear();
+		//v.clear();
+		//r.clear();
+		//mass.clear();
+		//r_r.clear();
 
 		for (size_t i = 0; i < N; i++)
 		{
