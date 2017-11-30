@@ -14,7 +14,7 @@
 using namespace std;
 
 int N = 1024;
-vector<Body*> bodies; //Body bodies[1000];
+vector<Body> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
 int screen_size_y = 768;
@@ -41,10 +41,10 @@ double circlev(double rx, double ry)
 void startthebodies(int N)
 {
 	double radius = 1e18;        // radius of universe
-	double solarmass = 1.98892e30;
+	//double solarmass = 1.98892e30;
 	for (int i = 0; i < N; i++) {
-		double px = 1e18*exp(-1.8)*(.5 - random());
-		double py = 1e18*exp(-1.8)*(.5 - random());
+		double px = (rand() % screen_size_x) - screen_size_x / 2; //exp(-1.8)*(.5 - random());
+		double py = (rand() % screen_size_y) - screen_size_y / 2; // exp(-1.8)*(.5 - random());
 		double magv = circlev(px, py);
 
 		double absangle = atan(abs(py / px));
@@ -52,23 +52,27 @@ void startthebodies(int N)
 		double phiv = random() * M_PI;
 		double vx = -1 * sgn(py)*cos(thetav)*magv;
 		double vy = sgn(px)*sin(thetav)*magv;
-		// Orient a random 2D circular orbit
-		if (random() <= .5) {
-			vx = -vx;
-			vy = -vy;
-		}
 
-		double mass = random() * solarmass * 10 + 1e20;
+		vx = 0;
+		vy = 0;
+
+		// Orient a random 2D circular orbit
+		//if (random() <= .5) {
+		//	vx = -vx;
+		//	vy = -vy;
+		//}
+
+		double mass = rand() % 20 + 1;  //random() * solarmass * 10 + 1e20;
 		// Color the masses in green gradients by mass
-		int red = (int)floor(mass * 254 / (solarmass * 10 + 1e20));
-		int blue = (int)floor(mass * 254 / (solarmass * 10 + 1e20));
+		int red = (int)floor(255);
+		int blue = (int)floor(255);
 		int green = 255;
 		ALLEGRO_COLOR color = al_map_rgb(red, green, blue);
 		// put a heavy body in the center
 		if (i == 0)
-			bodies.push_back(new Body(0, 0, 0, 0, 1e6*solarmass, color));
+			bodies.push_back(Body(0, 0, 0, 0, 100, color));
 
-		bodies.push_back(new Body(px, py, vx, vy, mass, color));
+		bodies.push_back(Body(px, py, vx, vy, mass, color));
 	}
 }
 
@@ -76,22 +80,23 @@ void startthebodies(int N)
 void addforces(int N)
 {
 	for (int i = 0; i < N; i++) {
-		bodies[i]->resetForce();
+		bodies[i].resetForce();
 		//Notice-2 loops-->N^2 complexity
 		for (int j = 0; j < N; j++) {
-			if (i != j) bodies[i]->addForce(*bodies[j]);
+			if (i != j) bodies[i].addForce(bodies[j]);
 		}
+		bodies[i].update(1e11);
 	}
 	//Then, loop again and update the bodies using timestep dt
-	for (int i = 0; i < N; i++) {
-		bodies[i]->update(1e11);
-	}
+	//for (int i = 0; i < N; i++) {
+	//	bodies[i]->update(1e11);
+	//}
 }
 
 void draw_bodies()
 {
 	for (int i = 0; i<N; i++) { 
-		al_draw_circle((screen_size_x /2) + (int)round(bodies[i]->rx / 1e18), (screen_size_y / 2) + (int)round(bodies[i]->ry / 1e18),1.0f, bodies[i]->color, 0.75f);
+		al_draw_circle((screen_size_x /2) + (int)round(bodies[i].rx), (screen_size_y / 2) + (int)round(bodies[i].ry),1.0f, bodies[i].color, 0.75f);
 	}
 }
 
