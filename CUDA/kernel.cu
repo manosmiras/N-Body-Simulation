@@ -14,7 +14,7 @@
 #include <chrono>
 #include <string>
 using namespace std;
-int N = 256;
+int N = 8192;
 
 int screen_size_x = 1024;
 int screen_size_y = 768;
@@ -287,10 +287,10 @@ __global__ void add_force_simple_double2(double2 *v, const double2 *r,
 		__syncthreads();
 		v[idx].x += dt * _fx / mass[idx];
 		v[idx].y += dt * _fy / mass[idx];
-		//r_r[idx].x = v[idx].x;
-		//r_r[idx].y = v[idx].y;
-		r_r[idx].x += dt * v[idx].x;
-		r_r[idx].y += dt * v[idx].y;
+		r_r[idx].x = v[idx].x;
+		r_r[idx].y = v[idx].y;
+		//r_r[idx].x += dt * v[idx].x;
+		//r_r[idx].y += dt * v[idx].y;
 	}
 }
 
@@ -366,23 +366,24 @@ int main(int argc, char **argv)
 	auto double_data_size = sizeof(double) * N;
 	auto double2_data_size = sizeof(double2) * N;
 
-	int MAX_THREADS = 1024;
+	//int MAX_THREADS = 1024;
 
-	int THREADS_PER_BLOCK;
-	// Max N % 1024 threads per block
-	if (N <= 1024)
-		THREADS_PER_BLOCK = N % MAX_THREADS;
-	else
-		THREADS_PER_BLOCK = MAX_THREADS % N;
-	if (THREADS_PER_BLOCK == 0)
-		THREADS_PER_BLOCK = 256;
+	//int THREADS_PER_BLOCK;
+	//// Max N % 1024 threads per block
+	//if (N <= 1024)
+	//	THREADS_PER_BLOCK = N % MAX_THREADS;
+	//else
+	//	THREADS_PER_BLOCK = MAX_THREADS % N;
+	//if (THREADS_PER_BLOCK == 0)
+	//	THREADS_PER_BLOCK = 256;
 
-	std::cout << "Blocks: " << N / THREADS_PER_BLOCK << ", threads per block: " << THREADS_PER_BLOCK << std::endl;
+
 
 
 	//int nBlocks = N / BLOCK_SIZE;
 	int nBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	//std::cout << "Number of blocks: " << nBlocks << ", block size: " << BLOCK_SIZE << std::endl;
+	std::cout << "Blocks: " << nBlocks << ", threads per block: " << BLOCK_SIZE << std::endl;
+
 	// Get the start time
 	auto start = std::chrono::system_clock::now();
 	double dt = 1;
@@ -414,24 +415,27 @@ int main(int argc, char **argv)
 		//mass.clear();
 		//r_r.clear();
 
-		for (size_t i = 0; i < N; i++)
-		{
-			// Init velocity
-			v[i].x = bodies[i].vx;
-			v[i].y = bodies[i].vy;
 
-			// Init positions
-			r[i].x = bodies[i].rx;
-			r[i].y = bodies[i].ry;
-
-			// Init mass
-			mass[i] = bodies[i].mass;
-		}
 		// Get the start time
 		auto current_start = std::chrono::system_clock::now();
 
-		for (int sim_iterations = 0; sim_iterations <= 50000; sim_iterations++)
+		for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
 		{
+
+			for (size_t i = 0; i < N; i++)
+			{
+				// Init velocity
+				v[i].x = bodies[i].vx;
+				v[i].y = bodies[i].vy;
+
+				// Init positions
+				r[i].x = bodies[i].rx;
+				r[i].y = bodies[i].ry;
+
+				// Init mass
+				mass[i] = bodies[i].mass;
+			}
+
 			cudaMemcpyAsync(d_v, &v[0], double2_data_size, cudaMemcpyHostToDevice);
 			cudaMemcpyAsync(d_r, &r[0], double2_data_size, cudaMemcpyHostToDevice);
 			cudaMemcpyAsync(d_m, &mass[0], double_data_size, cudaMemcpyHostToDevice);
@@ -458,8 +462,12 @@ int main(int argc, char **argv)
 				//bodies[i].rx = r_r[i].x;
 				//bodies[i].ry = r_r[i].y;
 				// Integrate
-				bodies[i].rx += dt * r_r[i].x;
-				bodies[i].ry += dt * r_r[i].y;
+				//bodies[i].rx += dt * r_r[i].x;
+				//bodies[i].ry += dt * r_r[i].y;
+				bodies[i].vx = r_r[i].x;
+				bodies[i].vy = r_r[i].y;
+				bodies[i].rx += dt * bodies[i].vx;
+				bodies[i].ry += dt * bodies[i].vy;
 			}
 
 			draw_bodies(bodies);
