@@ -12,6 +12,8 @@ Body::Body(double rx, double ry, double vx, double vy, double mass, ALLEGRO_COLO
 	this->vy = vy;
 	this->mass = mass;
 	this->color = color;
+	this->fx = 0;
+	this->fy = 0;
 }
 
 // update the velocity and position using a timestep dt
@@ -42,12 +44,18 @@ void Body::resetForce()
 // add to the net force acting on a
 void Body::addForce(Body &b) 
 {
-	Body a = *this;
-	double EPS = 3E4;      // softening parameter (just to avoid infinities)
-	double dx = b.rx - a.rx;
-	double dy = b.ry - a.ry;
+	//Body a = *this;
+	double EPS = 1E3;      // softening parameter (just to avoid infinities)
+	double dx = b.rx - this->rx;
+	double dy = b.ry - this->ry;
 	double dist = sqrt(dx*dx + dy*dy);
-	double F = (G * a.mass * b.mass) / (dist*dist + EPS*EPS);
-	a.fx += F * dx / dist;
-	a.fy += F * dy / dist;
+	if (dist == 0)
+	{
+		dist = 0.01;
+	}
+	//	std::cout << "dist is 0" << std::endl;
+	double F = (G * this->mass * b.mass) / (dist*dist + EPS * EPS);
+	//std::cout << F << std::endl;
+	this->fx += F * dx / dist;
+	this->fy += F * dy / dist;
 }
