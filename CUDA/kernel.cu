@@ -14,244 +14,11 @@
 #include <chrono>
 #include <string>
 using namespace std;
-int N = 8192;
+int N = 16;
 
 int screen_size_x = 1024;
 int screen_size_y = 768;
 #define BLOCK_SIZE 1024
-
-//__global__ void add_force_block_doubles(double *vx, double *vy, const double *rx, const double *ry,
-//	const double *mass, double *r_rx, double *r_ry, const double G, int N, double dt)
-//{
-//
-//	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-//
-//	if (idx < N)
-//	{
-//		// Reset forces
-//		double fx, fy = 0.0;
-//
-//		for (int tile = 0; tile < gridDim.x; tile++)
-//		{
-//			__shared__ double s_rx[BLOCK_SIZE];
-//			__shared__ double s_ry[BLOCK_SIZE];
-//			double t_rx = rx[tile * blockDim.x + threadIdx.x];
-//			double t_ry = ry[tile * blockDim.x + threadIdx.x];
-//			s_rx[threadIdx.x] = t_rx;
-//			s_ry[threadIdx.x] = t_ry;
-//			__syncthreads();
-//			for (int j = 0; j < BLOCK_SIZE; j++)
-//			{
-//				if (idx != j)
-//				{
-//					double EPS = 3E4;      // softening parameter (just to avoid infinities)
-//					double dx = s_rx[j] - rx[idx];
-//					double dy = s_ry[j] - ry[idx];
-//					double dist = sqrt(dx*dx + dy*dy);
-//					double F = (G * mass[idx] * mass[j]) / (dist*dist + EPS*EPS);
-//
-//					fx += F * dx / dist;
-//					fy += F * dy / dist;
-//				}
-//				__syncthreads();
-//			}
-//			//__syncthreads();
-//		}
-//
-//		// Calculate velocity and integrate
-//		vx[idx] += dt * fx / mass[idx];
-//		vy[idx] += dt * fy / mass[idx];
-//		r_rx[idx] += dt * vx[idx];
-//		r_ry[idx] += dt * vy[idx];
-//	}
-//}
-//
-//__global__ void add_force_block_double2(double2 *v, const double2 *r,
-//	const double *mass, double2 *r_r, int N, double dt)
-//{
-//	const double G = 6.673e-11;
-//
-//	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-//
-//	if (idx < N)
-//	{
-//		// Reset forces
-//		double fx, fy = 0.0;
-//
-//		for (int tile = 0; tile < gridDim.x; tile++)
-//		{
-//			__shared__ double2 s_r[BLOCK_SIZE];
-//			double2 t_r = r[tile * blockDim.x + threadIdx.x];
-//			s_r[threadIdx.x] = make_double2(t_r.x, t_r.y);
-//			__syncthreads();
-//
-//			for (int j = 0; j < BLOCK_SIZE; j++)
-//			{
-//				if (idx != j)
-//				{
-//					double EPS = 3E4;      // softening parameter (just to avoid infinities)
-//					double dx = s_r[j].x - r[idx].x;
-//					double dy = s_r[j].y - r[idx].y;
-//					double dist = sqrt(dx*dx + dy*dy);
-//					double F = (G * mass[idx] * mass[j]) / (dist*dist + EPS*EPS);
-//
-//					fx += F * dx / dist;
-//					fy += F * dy / dist;
-//				}
-//				//__syncthreads();
-//			}
-//			__syncthreads();
-//		}
-//
-//		// Calculate velocity and integrate
-//		v[idx].x += dt * fx / mass[idx];
-//		v[idx].y += dt * fy / mass[idx];
-//		r_r[idx].x += dt * v[idx].x;
-//		r_r[idx].y += dt * v[idx].y;
-//	}
-//}
-//
-//__global__ void add_force(const Body *bodies, double *vx, double *vy, const double G, int N, double dt)
-//{
-//	// Get block index
-//	unsigned int block_idx = blockIdx.x;
-//	// Get thread index
-//	unsigned int thread_idx = threadIdx.x;
-//	// Get the number of threads per block
-//	unsigned int block_dim = blockDim.x;
-//	// Get the thread's unique ID = (block_idx * block_dim) + thread_idx;
-//	unsigned int idx = (block_idx * block_dim) + thread_idx;
-//	if (idx < N)
-//	{
-//		// Reset forces
-//		double fx, fy = 0.0;
-//		//bodies[idx].fx = 0.0;
-//		//bodies[idx].fy = 0.0;
-//
-//		for (int tile = 0; tile < gridDim.x; tile++)
-//		{
-//			__shared__ double s_rx[BLOCK_SIZE];
-//			__shared__ double s_ry[BLOCK_SIZE];
-//			double t_rx = bodies[tile * blockDim.x + threadIdx.x].rx;
-//			double t_ry = bodies[tile * blockDim.x + threadIdx.x].ry;
-//			s_rx[threadIdx.x] = t_rx;
-//			s_ry[threadIdx.x] = t_ry;
-//			__syncthreads();
-//			for (int j = 0; j < BLOCK_SIZE; j++)
-//			{
-//				if (idx != j)
-//				{
-//					double EPS = 3E4;      // softening parameter (just to avoid infinities)
-//					double dx = s_rx[j] - bodies[idx].rx;
-//					double dy = s_ry[j] - bodies[idx].ry;
-//					double dist = sqrt(dx*dx + dy*dy);
-//					double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
-//
-//					// is this right? probably
-//					//f[idx].fx += F * dx / dist;
-//					//f[idx].fy += F * dy / dist;
-//
-//					fx += F * dx / dist;
-//					fy += F * dy / dist;
-//				}
-//				
-//			}
-//			__syncthreads();
-//		}
-//		
-//		// Calculate velocity
-//		vx[idx] += dt * fx / bodies[idx].mass;
-//		vy[idx] += dt * fy / bodies[idx].mass;
-//	}
-//}
-//
-//__global__ void add_force_simple(const Body *bodies, Body *returned_bodies, const double G, int N, double dt)//(Body *bodies, double *vx, double *vy, const double G, int N, double dt)
-//{
-//	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-//
-//	if (idx < N)
-//	{
-//		double fx, fy = 0;
-//		returned_bodies[idx].fx = 0;
-//		returned_bodies[idx].fy = 0;
-//		for (int j = 0; j < N; j++)
-//		{
-//			if (idx != j)
-//			{
-//				double EPS = 3E4;      // softening parameter (just to avoid infinities)
-//				double dx = bodies[j].rx - bodies[idx].rx;
-//				double dy = bodies[j].ry - bodies[idx].ry;
-//				double dist = sqrt(dx*dx + dy*dy);
-//				double F = (G * bodies[idx].mass * bodies[j].mass) / (dist*dist + EPS*EPS);
-//
-//				fx += F * dx / dist;
-//				fy += F * dy / dist;
-//				//returned_bodies[idx].fx += fx;
-//				//returned_bodies[idx].fy += fy;
-//				//fx[idx] = bodies[idx].fx;
-//				//fy[idx] = bodies[j].fx;
-//				//f[idx].fx += F * dx / dist;
-//				//f[idx].fy += F * dy / dist;
-//				//bodies_return[idx].fx += F * dx / dist;
-//				//bodies_return[idx].fy += F * dy / dist;
-//			}
-//		}
-//		//bodies[idx].vx += dt * fx / bodies[idx].mass;
-//		//bodies[idx].vy += dt * fy / bodies[idx].mass;
-//		//bodies[idx].rx += dt * bodies[idx].vx;
-//		//bodies[idx].ry += dt * bodies[idx].vy;
-//
-//		// Update velocity and integrate
-//		//returned_bodies[idx].vx += dt * returned_bodies[idx].fx / returned_bodies[idx].mass;
-//		//returned_bodies[idx].vy += dt * returned_bodies[idx].fy / returned_bodies[idx].mass;
-//		//returned_bodies[idx].rx += dt * returned_bodies[idx].vx;
-//		//returned_bodies[idx].ry += dt * returned_bodies[idx].vy;
-//		//vx[idx] += dt * fx / bodies[idx].mass;
-//		//vy[idx] += dt * fy / bodies[idx].mass;
-//	}
-//
-//	//bodies_return[idx].vx += dt * bodies_return[idx].fx / bodies_return[idx].mass;
-//	//bodies_return[idx].vy += dt * bodies_return[idx].fy / bodies_return[idx].mass;
-//	//bodies_return[idx].rx += dt * bodies_return[idx].vx;
-//	//bodies_return[idx].ry += dt * bodies_return[idx].vy;
-//	//c->fx += F * dx / dist;
-//	//c->fy += F * dy / dist;
-//}
-//__global__ void add_force_simple_doubles(double *vx, double *vy, const double *rx, const double *ry,
-//	const double *mass, double *r_rx, double *r_ry, int N, double dt)
-//{
-//	const double G = 1;
-//
-//	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-//
-//	if (idx < N)
-//	{
-//		double _fx, _fy = 0;
-//		//__syncthreads();
-//		#pragma unroll
-//		for (int j = 0; j < N; j++)
-//		{
-//			if (idx != j)
-//			{
-//				double EPS = 3E4;      // softening parameter (just to avoid infinities)
-//				double dx = rx[j] - rx[idx];
-//				double dy = ry[j] - ry[idx];
-//				double dist = sqrt(dx*dx + dy*dy);
-//				double F = (G * mass[idx] * mass[j]) / (dist*dist + EPS*EPS);
-//
-//				_fx += F * dx / dist;
-//				_fy += F * dy / dist;
-//				
-//			}
-//			//__syncthreads();
-//		}
-//		__syncthreads();
-//		vx[idx] += dt * _fx / mass[idx];
-//		vy[idx] += dt * _fy / mass[idx];
-//		r_rx[idx] += dt * vx[idx];
-//		r_ry[idx] += dt * vy[idx];
-//	}
-//}
 
 __global__ void add_force_simple_double2(double2 *v, const double2 *r,
 	const double *mass, double2 *r_r, int N, double dt)
@@ -315,9 +82,6 @@ vector<Body> startthebodies(int N)
 		int green = (int)floor(mass * 254);
 		ALLEGRO_COLOR color = al_map_rgb(red, green, blue);
 
-		if (i == 0)
-			std::cout << "x: " << px << ", y:" << py << std::endl;
-
 		bodies.push_back(Body(px, py, vx, vy, mass, color));
 	}
 	return bodies;
@@ -326,7 +90,7 @@ vector<Body> startthebodies(int N)
 void draw_bodies(vector<Body> &bodies)
 {
 	for (int i = 0; i<N; i++) {
-		al_draw_filled_circle((screen_size_x / 2) + (int)round(bodies[i].rx), (screen_size_y / 2) + (int)round(bodies[i].ry), bodies[i].mass / 1000, bodies[i].color);
+		al_draw_filled_circle((screen_size_x / 2) + (int)round(bodies[i].rx), (screen_size_y / 2) + (int)round(bodies[i].ry), bodies[i].mass / 500, bodies[i].color);
 	}
 }
 
@@ -366,28 +130,14 @@ int main(int argc, char **argv)
 	auto double_data_size = sizeof(double) * N;
 	auto double2_data_size = sizeof(double2) * N;
 
-	//int MAX_THREADS = 1024;
-
-	//int THREADS_PER_BLOCK;
-	//// Max N % 1024 threads per block
-	//if (N <= 1024)
-	//	THREADS_PER_BLOCK = N % MAX_THREADS;
-	//else
-	//	THREADS_PER_BLOCK = MAX_THREADS % N;
-	//if (THREADS_PER_BLOCK == 0)
-	//	THREADS_PER_BLOCK = 256;
-
-
-
-
-	//int nBlocks = N / BLOCK_SIZE;
 	int nBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+	std::cout << "size of bodies: " << N << std::endl;
 	std::cout << "Blocks: " << nBlocks << ", threads per block: " << BLOCK_SIZE << std::endl;
 
 	// Get the start time
 	auto start = std::chrono::system_clock::now();
-	double dt = 1;
-	int avg_count = 50;
+	double dt = 0.1;
+	int avg_count = 10;
 	for (int average_iterations = 0; average_iterations < avg_count; average_iterations++)
 	{
 		vector<double2> v(N);
@@ -410,11 +160,6 @@ int main(int argc, char **argv)
 		cudaMalloc((void**)&d_r_r, double2_data_size);
 
 		vector<Body> bodies = startthebodies(N);
-		//v.clear();
-		//r.clear();
-		//mass.clear();
-		//r_r.clear();
-
 
 		// Get the start time
 		auto current_start = std::chrono::system_clock::now();
@@ -455,15 +200,6 @@ int main(int argc, char **argv)
 
 			for (int i = 0; i < N; i++)
 			{
-				//bodies[i]->fx = f[i]->fx;
-				//bodies[i]->fy = f[i]->fy;
-				//returned_bodies[i].update(1e11);
-				//bodies[i]->update(1e11);
-				//bodies[i].rx = r_r[i].x;
-				//bodies[i].ry = r_r[i].y;
-				// Integrate
-				//bodies[i].rx += dt * r_r[i].x;
-				//bodies[i].ry += dt * r_r[i].y;
 				bodies[i].vx = r_r[i].x;
 				bodies[i].vy = r_r[i].y;
 				bodies[i].rx += dt * bodies[i].vx;
@@ -498,19 +234,9 @@ int main(int argc, char **argv)
 	// Get the total time
 	auto total = end - start;
 
-	cout << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(total).count() << " ms" << endl;
+	cout << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(total).count() / avg_count << " ms" << endl;
 
 	al_destroy_display(display);
-
-	// Clean up resources
-	//cudaFree(d_vx);
-	//cudaFree(d_vy);
-	//cudaFree(d_rx);
-	//cudaFree(d_ry);
-
-	//cudaFree(d_r_rx);
-	//cudaFree(d_r_ry);
-	//cudaFree(d_bs);
 
 	return 0;
 }

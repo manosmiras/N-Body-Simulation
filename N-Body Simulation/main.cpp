@@ -12,7 +12,7 @@
 #include <chrono>
 using namespace std;
 
-int N = 2048;
+int N = 2;
 //vector<Body> bodies; //Body bodies[1000];
 
 int screen_size_x = 1024;
@@ -38,9 +38,6 @@ vector<Body> startthebodies(int N)
 		int green = (int)floor(mass * 254);
 		ALLEGRO_COLOR color = al_map_rgb(red, green, blue);
 
-		if (i == 0)
-			std::cout << "x: " << px << ", y:" << py << std::endl;
-
 		bodies.push_back(Body(px, py, vx, vy, mass, color));
 	}
 	return bodies;
@@ -58,20 +55,20 @@ void addforces(vector<Body> &bodies, int N)
 	}
 	//Then, loop again and update the bodies using timestep dt
 	for (int i = 0; i < N; i++) {
-		bodies[i].update(1);
+		bodies[i].update(0.1);
 	}
 }
 
 void draw_bodies(vector<Body> &bodies)
 {
 	for (int i = 0; i<N; i++) { 
-		al_draw_filled_circle((screen_size_x / 2) + (int)round(bodies[i].rx), (screen_size_y / 2) + (int)round(bodies[i].ry), bodies[i].mass / 1000, bodies[i].color);
+		al_draw_filled_circle((screen_size_x / 2) + (int)round(bodies[i].rx), (screen_size_y / 2) + (int)round(bodies[i].ry), bodies[i].mass / 500, bodies[i].color);
 	}
 }
 
 int main(int argc, char **argv)
 {
-
+	
 	ALLEGRO_DISPLAY *display = NULL;
 
 	if (!al_init()) {
@@ -101,16 +98,15 @@ int main(int argc, char **argv)
 
 	// Get the start time
 	auto start = std::chrono::system_clock::now();
-	int avg_count = 100;
-
-	for (int average_iterations = 0; average_iterations <= avg_count; average_iterations++)
+	int avg_count = 10;
+	std::cout << "Body count: " << N << std::endl;
+	for (int average_iterations = 0; average_iterations < avg_count; average_iterations++)
 	{
-		//bodies.clear();
 		vector<Body> bodies = startthebodies(N);
 		// Get the start time
 		auto current_start = std::chrono::system_clock::now();
-		std::cout << "size of bodies: " << bodies.size() << std::endl;
-		for (int sim_iterations = 0; sim_iterations < 1000; sim_iterations++)
+
+		for (int sim_iterations = 0; sim_iterations < 5000; sim_iterations++)
 		{
 			addforces(bodies, N);
 			draw_bodies(bodies);

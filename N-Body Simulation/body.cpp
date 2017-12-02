@@ -53,9 +53,7 @@ void Body::addForce(Body &b)
 	{
 		dist = 0.01;
 	}
-	//	std::cout << "dist is 0" << std::endl;
 	double F = (G * this->mass * b.mass) / (dist*dist + EPS * EPS);
-	//std::cout << F << std::endl;
 	this->fx += F * dx / dist;
 	this->fy += F * dy / dist;
 }
