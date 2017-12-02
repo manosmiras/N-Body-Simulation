@@ -2,10 +2,11 @@
 using namespace std;
 #include <math.h>
 #include <allegro5/allegro_color.h>
+#include <iostream>
 class Body 
 {
 private:
-	 const double G = 6.673e-11;   // gravitational constant
+	 const double G = 1;   // gravitational constant
 	 const double solarmass = 1.98892e30;
 public:
 	double rx, ry;       // holds the cartesian positions
