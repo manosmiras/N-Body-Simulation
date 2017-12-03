@@ -23,15 +23,15 @@ int screen_size_y = 768;
 __global__ void add_force_simple_double2(double2 *v, const double2 *r,
 	const double *mass, double2 *r_r, int N, double dt)
 {
+	// Gravitational constant
 	const double G = 1;
-
+	// Get the index
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if (idx < N)
 	{
+		// Forces
 		double _fx, _fy = 0;
-		//__syncthreads();
-		//#pragma unroll
 		for (int j = 0; j < N; j++)
 		{
 			if (idx != j)
@@ -45,19 +45,18 @@ __global__ void add_force_simple_double2(double2 *v, const double2 *r,
 					dist = 0.01;
 				}
 				double F = (G * mass[idx] * mass[j]) / (dist*dist + EPS*EPS);
-
+				// Calculate force
 				_fx += F * dx / dist;
 				_fy += F * dy / dist;
 			}
-			//__syncthreads();
 		}
 		__syncthreads();
+		// Update velocity
 		v[idx].x += dt * _fx / mass[idx];
 		v[idx].y += dt * _fy / mass[idx];
+		// Assign value to return to host
 		r_r[idx].x = v[idx].x;
 		r_r[idx].y = v[idx].y;
-		//r_r[idx].x += dt * v[idx].x;
-		//r_r[idx].y += dt * v[idx].y;
 	}
 }
 
@@ -140,12 +139,14 @@ int main(int argc, char **argv)
 	int avg_count = 10;
 	for (int average_iterations = 0; average_iterations < avg_count; average_iterations++)
 	{
+		// Initialise vectors 
 		vector<double2> v(N);
 		vector<double2> r(N);
 		vector<double> mass(N);
 
 		vector<double2> r_r(N);
 
+		// Initialise Buffers
 		double2 *d_v;
 		double2 *d_r;
 
@@ -153,20 +154,21 @@ int main(int argc, char **argv)
 
 		double2 *d_r_r;
 
+		// Allocate cuda memory
 		cudaMalloc((void**)&d_v, double2_data_size);
 		cudaMalloc((void**)&d_r, double2_data_size);
 
 		cudaMalloc((void**)&d_m, double_data_size);
 		cudaMalloc((void**)&d_r_r, double2_data_size);
-
+		// Initialise bodies
 		vector<Body> bodies = startthebodies(N);
 
-		// Get the start time
+		// Get the current iteration start time
 		auto current_start = std::chrono::system_clock::now();
 
 		for (int sim_iterations = 0; sim_iterations <= 5000; sim_iterations++)
 		{
-
+			// Pass the body data to the appropriate vectors
 			for (size_t i = 0; i < N; i++)
 			{
 				// Init velocity
@@ -180,15 +182,16 @@ int main(int argc, char **argv)
 				// Init mass
 				mass[i] = bodies[i].mass;
 			}
-
+			// Send data to device
 			cudaMemcpyAsync(d_v, &v[0], double2_data_size, cudaMemcpyHostToDevice);
 			cudaMemcpyAsync(d_r, &r[0], double2_data_size, cudaMemcpyHostToDevice);
 			cudaMemcpyAsync(d_m, &mass[0], double_data_size, cudaMemcpyHostToDevice);
 
-
+			// Execute kernel
 			add_force_simple_double2 << <nBlocks, BLOCK_SIZE >> > (d_v, d_r, d_m, d_r_r, N, dt);
 			// Wait for kernel to complete
-			//cudaDeviceSynchronize();
+			cudaDeviceSynchronize();
+			// Check if there are any errors
 			cudaError_t error = cudaGetLastError();
 			if (error != cudaSuccess)
 			{
@@ -197,7 +200,7 @@ int main(int argc, char **argv)
 			}
 			// Read output buffer back to the host
 			cudaMemcpyAsync(&r_r[0], d_r_r, double2_data_size, cudaMemcpyDeviceToHost);
-
+			// Update values of body data
 			for (int i = 0; i < N; i++)
 			{
 				bodies[i].vx = r_r[i].x;
@@ -216,11 +219,11 @@ int main(int argc, char **argv)
 			al_draw_text(font, al_map_rgb(255, 255, 255), 0, 0, ALLEGRO_ALIGN_LEFT, s.c_str());
 		}
 
-		// Get the end time
+		// Get the current end time
 		auto current_end = std::chrono::system_clock::now();
-		// Get the total time
+		// Get the current total time
 		auto current_total = current_end - current_start;
-
+		// Display the time it took for the current iteration
 		std::cout << average_iterations << ", time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(current_total).count() << " ms" << endl;
 
 		cudaFree(d_v);
@@ -233,7 +236,7 @@ int main(int argc, char **argv)
 	auto end = std::chrono::system_clock::now();
 	// Get the total time
 	auto total = end - start;
-
+	// Display total average time
 	cout << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(total).count() / avg_count << " ms" << endl;
 
 	al_destroy_display(display);

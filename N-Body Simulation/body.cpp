@@ -44,11 +44,11 @@ void Body::resetForce()
 // add to the net force acting on a
 void Body::addForce(Body &b) 
 {
-	//Body a = *this;
 	double EPS = 1E3;      // softening parameter (just to avoid infinities)
 	double dx = b.rx - this->rx;
 	double dy = b.ry - this->ry;
 	double dist = sqrt(dx*dx + dy*dy);
+	// This is to avoid bodies from pinging each other too hard
 	if (dist == 0)
 	{
 		dist = 0.01;

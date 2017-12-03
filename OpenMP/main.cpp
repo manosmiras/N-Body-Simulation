@@ -14,7 +14,6 @@
 using namespace std;
 
 int N = 4096;
-//vector<Body> bodies; //Body bodies[1000];
 int num_threads;
 int screen_size_x = 1024;
 int screen_size_y = 768;
@@ -47,6 +46,7 @@ vector<Body> startthebodies(int N)
 //Use the method in Body to reset the forces, then add all the new forces
 void addforces(vector<Body> &bodies, int N)
 {
+	// Parallel for added here - change schedule to either static or dynamic
 	#pragma omp parallel for num_threads(num_threads) schedule(static)
 	for (int i = 0; i < N; i++) {
 		bodies[i].resetForce();
@@ -55,7 +55,6 @@ void addforces(vector<Body> &bodies, int N)
 			if (i != j) bodies[i].addForce(bodies[j]);
 		}
 	}
-	//#pragma omp parallel for num_threads(num_threads) schedule(dynamic)
 	//Then, loop again and update the bodies using timestep dt
 	for (int i = 0; i < N; i++) {
 		bodies[i].update(0.1);
@@ -105,9 +104,8 @@ int main(int argc, char **argv)
 	std::cout << "size of bodies: " << N << std::endl;
 	for (int average_iterations = 0; average_iterations < avg_count; average_iterations++)
 	{
-		//bodies.clear();
 		vector<Body> bodies = startthebodies(N);
-		// Get the start time
+		// Get the current start time
 		auto current_start = std::chrono::system_clock::now();
 
 		for (int sim_iterations = 0; sim_iterations < 5000; sim_iterations++)
@@ -123,19 +121,18 @@ int main(int argc, char **argv)
 			s += buffer;
 			al_draw_text(font, al_map_rgb(255, 255, 255), 0, 0, ALLEGRO_ALIGN_LEFT, s.c_str());
 		}
-		// Get the end time
+		// Get the current end time
 		auto current_end = std::chrono::system_clock::now();
-		// Get the total time
+		// Get the current total time
 		auto current_total = current_end - current_start;
-
-		
+		// Display the time it took for the current iteration
 		cout << average_iterations << ", time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(current_total).count() << " ms" << endl;
 	}
 	// Get the end time
 	auto end = std::chrono::system_clock::now();
 	// Get the total time
 	auto total = end - start;
-
+	// Display total average time
 	cout << "Total time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(total).count() / avg_count << " ms" << endl;
 
 	al_destroy_display(display);

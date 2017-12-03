@@ -13,7 +13,7 @@ public:
 	double vx, vy;       // velocity components 
 	double fx, fy;       // force components
 	double mass;         // mass
-	ALLEGRO_COLOR color;
+	ALLEGRO_COLOR color; // color of body
 
 	Body();
 
@@ -32,9 +32,4 @@ public:
 	// compute the net force acting between the body a and b, and
 	// add to the net force acting on a
 	void addForce(Body &b);
-
-	// convert to string representation formatted nicely
-	//String toString() {
-	//	return "" + rx + ", " + ry + ", " + vx + ", " + vy + ", " + mass;
-	//}
 };

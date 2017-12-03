@@ -44,7 +44,6 @@ void Body::resetForce()
 // add to the net force acting on a
 void Body::addForce(Body &b) 
 {
-	//Body a = *this;
 	double EPS = 1E3;      // softening parameter (just to avoid infinities)
 	double dx = b.rx - this->rx;
 	double dy = b.ry - this->ry;
@@ -53,9 +52,7 @@ void Body::addForce(Body &b)
 	{
 		dist = 0.01;
 	}
-	//	std::cout << "dist is 0" << std::endl;
 	double F = (G * this->mass * b.mass) / (dist*dist + EPS * EPS);
-	//std::cout << F << std::endl;
 	this->fx += F * dx / dist;
 	this->fy += F * dy / dist;
 }
